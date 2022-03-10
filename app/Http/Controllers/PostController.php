@@ -2,63 +2,74 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Post;
-use Illuminate\Http\Request;
+use App\Http\Requests\StorePostRequest;
+use App\Http\Requests\UpdatePostRequest;
+use App\Repositories\Contracts\PostRepositoryInterface;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
 class PostController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
+    private PostRepositoryInterface $postRepository;
+
+    public function __construct(PostRepositoryInterface $postRepository)
     {
-        //
+        $this->postRepository = $postRepository;
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
+    public function index(): JsonResponse
     {
-        //
+        return response()->json($this->postRepository->index(15));
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Post  $post
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Post $post)
+    public function store(StorePostRequest $request): JsonResponse
     {
-        //
+        $post = $this->postRepository->create($request->validated() + [
+                'user_id' => auth()->id(),
+            ]);
+
+        return response()->json([
+            'data' => $post,
+            'message' => 'پست جدید ایجاد شد.',
+        ], Response::HTTP_CREATED);
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Post  $post
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Post $post)
+    public function show($id): JsonResponse
     {
-        //
+        return response()->json([
+            'data' => $this->postRepository->find($id),
+        ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Post  $post
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Post $post)
+    public function update(UpdatePostRequest $request, $id): JsonResponse
     {
-        //
+        $post = $this->postRepository->find($id);
+
+        if (auth()->id() != $post->user_id) {
+            throw new AuthorizationException('دسترسی ندارید.', Response::HTTP_FORBIDDEN);
+        }
+
+        $this->postRepository->update($post, $request->validated());
+
+        return response()->json([
+            'data' => $post,
+            'message' => 'پست ویرایش شد.',
+        ]);
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        $post = $this->postRepository->find($id);
+
+        if (auth()->id() != $post->user_id) {
+            throw new AuthorizationException('دسترسی ندارید.', Response::HTTP_FORBIDDEN);
+        }
+
+        $this->postRepository->delete($post);
+
+        return response()->json([
+            'message' => 'پست حذف شد.',
+        ]);
     }
 }
