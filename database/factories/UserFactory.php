@@ -18,7 +18,16 @@ class UserFactory extends Factory
     {
         return [
             'username' => $this->faker->userName,
-            'password' => bcrypt('secret'),
+            'password' => bcrypt('password'),
         ];
+    }
+
+    public function password(string $password = 'secret'): UserFactory
+    {
+        return $this->state(function () use ($password) {
+            return [
+                'password' => bcrypt($password)
+            ];
+        });
     }
 }
